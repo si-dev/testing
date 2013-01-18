@@ -47,12 +47,10 @@
 					<section>
 					    <h2>¿Por qué necesito tests?</h2>
 					    <p>
-						    Cuando hay que cambiar líneas de código en nuestro proyecto, que antes funcionaban bien, ahora...
+						    Si hay que cambiar líneas de código en nuestro proyecto, nos arriesgamos a un...
 					    </p>
-                        <img src="img/boom.jpg"/>
-						<a href="#" class="image navigate-down bottom-right">
-							<img src="img/arrow.png" alt="Down arrow">
-						</a>
+                        <p><img src="img/boom.jpg"/></p>
+						<img src="img/arrow.png" alt="Down arrow">
 				    </section>
 					<section>
 						<h2>Test unitarios</h2>
@@ -63,21 +61,418 @@ Ejemplo: funcion multiplicaPorDos
 Test: comprueba que la funcion multiplicaPorDos(3) devuelve: 6.
 
 </code></pre>
-						<a href="#" class="image navigate-down bottom-right">
-							<img src="img/arrow.png" alt="Down arrow">
-						</a>
+						<img src="img/arrow.png" alt="Down arrow">
 					</section>
 					<section>
 						<h2>Test integración</h2>
-						<p>Nos comprueban que todos los elementos que componen un proceso funcionan bien. Son los que vamos a comentar.</p>
-                        <pre style="background: #3f3f3f;"><code contenteditable style="font-size: 18px; margin-top: 20px;">
+						<p>Nos comprueban que todos los elementos que componen un proceso funcionan bien.</p>
+                        <blockquote style="background: #CCC; padding: 1em;">
 Ejemplo: Test que hace una llamada al servicio que obtiene la tabla de multiplicar del 2 completa del 1 al 1000.
 
-</code></pre>
+</blockquote>
                         <p>En nuestro caso, los tests de integración atraviesan varias capas: Servicio, modelo, y DAO.</p>
+						<p><img src="img/arrow.png" alt="Down arrow"></p>
+					</section>
+
+					<section>
+						<h2>Estructura de los test de la capa REST</h2>
+                        <ol>
+                            <li><strong>Inicialización de datos.</strong> (Builders).</li>
+                            <li><strong>Ejecución de las llamadas rests.</strong></li>
+                            <li><strong>Comprobación de que los resultados son los esperados.</strong> (Hamcrest).</li>
+                        </ol>
 					</section>
 				</section>
 
+				<section>
+					<section>
+					    <h2>¿Qué datos de DB utilizaremos en los test?</h2>
+                        <ul>
+                            <li><strong><strike>Los datos de la DB de producción.</strike></strong></li>
+                            <li><strong><strike>Los datos de la DB de desarrollo.</strike></strong></li>
+                            <li><strong>Datos simulados en una base de datos en memoria.</strong></li>
+                        </ul>
+                        <p><img style="width: 300px;" src="img/questionary.jpg"></p>
+                        <p><img src="img/arrow.png" alt="Down arrow"></p>
+				    </section>
+					<section>
+						<h2>Base de datos en memoria H2</h2>
+                        <p>Cambiaremos nuestro <strong>applicationContext.xml</strong> para los tests, enlazando con una base de datos en memoria.</p>
+                        <pre><code contenteditable>
+&lt;property name="jpaVendorAdapter"&gt;
+  &lt;bean class="org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter"&gt;
+    &lt;property name="database" value="H2" /&gt;
+    &lt;property name="showSql" value="true" /&gt;
+    &lt;property name="databasePlatform" value="org.hibernate.dialect.H2Dialect" /&gt;
+  &lt;/bean&gt;
+&lt;/property&gt;
+
+</code></pre>
+                        <p><img src="img/arrow.png" alt="Down arrow"></p>
+					</section>
+					<section>
+						<h2>Base de datos en memoria H2</h2>
+                        <p>En la definición de nuestras clases de test cambiaremos el contexto a la base de datos en Memoria.</p>
+                        <pre style="margin: 1em 0; width: 100%; font-size: .5em;"><code contenteditable>
+@RunWith(SpringJUnit4ClassRunner.class)
+@ContextConfiguration(locations = { "classpath:applicationContext-test.xml" })
+@TransactionConfiguration(defaultRollback = false)
+public class TablaDeMultiplicarTest {
+
+
+
+
+}
+
+</code></pre>
+                        <p><img src="img/arrow.png" alt="Down arrow"></p>
+					</section>
+					<section>
+						<h2>¿Y los datos para el test?</h2>
+                        <p>El esquema de la base de datos se generará sólo a partir de las anotaciones JPA, pero los datos los tendremos que construir nosotros a mano. Para facilitar estre proceso utilizaremos <strong style="font-size: 1.7em;">Builders</strong></p>
+                        <p><img style="width: 500px;" src="img/schema.png" /></p>
+					</section>
+				</section>
+
+				<section>
+					<section>
+					    <h2>Builders</h2>
+					    <p>
+						    Nos facilitar el proceso poblar nuestra base de datos en memoria con datos controlados para simular una ejecución de los tests con datos reales.
+					    </p>
+                        <p><img src="img/builder.jpg"/></p>
+						<img src="img/arrow.png" alt="Down arrow">
+				    </section>
+					<section>
+						<h2>Creación de un builder</h2>
+                        <p>Hay que implementar una nueva clase Builder que creará nuestros objetos, ya sea en memoria o en la base de datos.</p>
+                        <pre style="background: #3f3f3f;"><code contenteditable style="font-size: 18px; margin-top: 20px;">
+public class UsuarioBuilder
+{
+    private Usuario usuario;
+    private UsuarioDAO usuarioDAO;
+
+    public UsuarioBuilder(UsuarioDAO usuarioDAO)
+    {
+        this.usuarioDAO = usuarioDAO;
+        usuario = new Usuario();
+    }
+
+    public UsuarioBuilder()
+    {
+        this(null);
+    }
+
+    public UsuarioBuilder withNombre(String nombre)
+    {
+        usuario.setNombre(nombre);
+        return this;
+    }
+
+    public Usuario build()
+    {
+        if (usuarioDAO != null)
+        {
+            usuario = usuarioDAO.insertUsuario(usuario);
+        }
+
+        return usuario;
+    }
+}
+</code></pre>
+						<img src="img/arrow.png" alt="Down arrow">
+					</section>
+					<section>
+						<h2>Uso de los builders</h2>
+						<p>Una vez tenemos creadas nuestras clases Builder que recubren a los modelos, ya podemos utilizarlas para poblar de datos nuestro entorno de testing.</p>
+                        <pre style="background: #3f3f3f;"><code contenteditable style="font-size: 18px; margin-top: 20px;">
+@Autowired
+private CentroDAO centroDAO;
+
+@Autowired
+private AulaDAO aulaDAO;
+
+@Before
+@Transactional
+public void rellenaDatos()
+{
+    Centro centro = new CentroBuilder(centroDAO).withNombre("Centro de prueba").build();
+    centroId = centro.getId();
+    Edificio edificio = new EdificioBuilder().withNombre("Edificio 1").withCentro(centro).build();
+    PlantaEdificio plantaEdificio = new PlantaEdificioBuilder().withNombre("Planta 1").withEdificio(edificio).build();
+    PlantaEdificio plantaEdificio2 = new PlantaEdificioBuilder().withNombre("Planta 2").withEdificio(edificio).build();
+    AreaEdificio areaEdificio = new AreaEdificioBuilder().withNombre("Area 1").withEdificio(edificio).build();
+    AreaEdificio areaEdificio2 = new AreaEdificioBuilder().withNombre("Area 2").withEdificio(edificio).build();
+    TipoAula tipoAula = new TipoAulaBuilder().withNombre("Tipo Aula 1").withEdificio(edificio).build();
+    TipoAula tipoAula2 = new TipoAulaBuilder().withNombre("Tipo Aula 2").withEdificio(edificio).build();
+    new AulaBuilder(aulaDAO).withNombre("Aula 1").withArea(areaEdificio).withTipo(tipoAula).withPlanta(plantaEdificio).withEdificio(edificio).build();
+    new AulaBuilder(aulaDAO).withNombre("Aula 2").withArea(areaEdificio2).withTipo(tipoAula).withPlanta(plantaEdificio2).withEdificio(edificio).build();
+    new AulaBuilder(aulaDAO).withNombre("Aula 3").withArea(areaEdificio).withTipo(tipoAula2).withPlanta(plantaEdificio).withEdificio(edificio).build();
+    new AulaBuilder(aulaDAO).withNombre("Aula 4").withArea(areaEdificio).withTipo(tipoAula).withPlanta(plantaEdificio).withEdificio(edificio).build();
+    new AulaBuilder(aulaDAO).withNombre("Aula 5").withArea(areaEdificio).withTipo(tipoAula).withPlanta(plantaEdificio2).withEdificio(edificio).build();
+    new AulaBuilder(aulaDAO).withNombre("Aula 6").withArea(areaEdificio2).withTipo(tipoAula2).withPlanta(plantaEdificio).withEdificio(edificio).build();
+}
+</code></pre>
+					</section>
+
+				</section>
+
+				<section>
+					<section>
+					    <h2>Test en la capa rest</h2>
+                        <p>Una vez tenemos cargados los datos controlados de testing en la base de datos en memoria, vamos a ejecutar nuestros tests de la capa <strong>REST</strong>.</p>
+                        <p><img style="width: 300px;" src="img/testing.jpg"></p>
+                        <p><img src="img/arrow.png" alt="Down arrow"></p>
+				    </section>
+
+					<section>
+					    <h2>¿Qué hacen los tests de la capa REST?</h2>
+                        <ul>
+                            <li>Probar la funcionalidad del servidor desde la interfaz <strong>REST</strong> que este proporciona.</li>
+                            <li>Ejercitan todas las capas. En nuestro caso Recursos Rest, Servicios, Modelos, DAOs y DTOs.</li>
+                            <li><strong>Ventajas</strong> -> Mucha cobertura. En 1 tests se comprueba: parseo de datos, invocación a servicio, reglas de negocio, lecturas/escrituras a bbdd.</li>
+                            <li><strong>Inconvenientes</strong> -> Identificar error cuando falla.</li>
+                        </ul>
+                        <p><img src="img/arrow.png" alt="Down arrow"></p>
+				    </section>
+
+					<section>
+					    <h2>¿Como implementar estos tests?</h2>
+                        <ul>
+                            <li><strong>Capa REST</strong> -> Jersey -> implementación JAX-RS (JSR 311) </li>
+                            <li>Enlace a la documentación: <a href="http://jersey.java.net/nonav/documentation/latest/test-framework.html">Jersey Test Framework</a>.</li>
+                            <li><strong>En general</strong>: extender com.sun.jersey.test.framework.JerseyTest.</li>
+                        </ul>
+                        <p><img src="img/arrow.png" alt="Down arrow"></p>
+				    </section>
+
+					<section>
+					    <h2>Ejemplo básico de implementación</h2>
+                        <pre><code contenteditable>
+public class MainTest extends JerseyTest {
+
+    public MainTest()throws Exception {
+        super("com.sun.jersey.samples.helloworld.resources");
+    }
+
+    @Test
+    public void testHelloWorld() {
+        WebResource webResource = resource();
+        String responseMsg = webResource.path("helloworld").get(String.class);
+        assertEquals("Hello World", responseMsg);
+    }
+
+}
+</code></pre>
+                    <p>En la UJI: extendemos es.uji.commons.testing.jersey.JerseySpringTest</p>
+                    <p><img src="img/arrow.png" alt="Down arrow"></p>
+				    </section>
+
+					<section>
+					    <h2>Ejemplo real de implementación</h2>
+                        <p>En el proyecto <strong>Horarios</strong> hemos utilizado las llamadas de la siguiente manera:</p>
+                        <pre><code contenteditable>
+// - GET
+ClientResponse response = resource.path("grupo").queryParams(getDefaulQueryParams()).accept(MediaType.APPLICATION_JSON_TYPE).get(ClientResponse.class);
+
+List&lt;UIEntity&gt; listaGrupos = response.getEntity(new GenericType&lt;List&lt;UIEntity&gt;&gt;() { };
+
+
+// - POST
+resource.path("calendario/eventos/generica/divide/" + evento_id).accept(MediaType.APPLICATION_JSON_TYPE).post(ClientResponse.class);
+
+
+// - PUT
+MultivaluedMap<String, String> params = new StringKeyStringValueIgnoreCaseMultivaluedMap();
+params.putSingle("aulaId", String.valueOf(aulaPlanificacionId));
+params.putSingle("tipoAccion", "F");
+
+resource.path("calendario/eventos/aula/evento/" + eventoId).accept(MediaType.APPLICATION_JSON).put(ClientResponse.class, params);
+
+
+// - DELETE
+resource.path("calendario/eventos/generica/" + eventoId).accept(MediaType.APPLICATION_JSON_TYPE).delete(ClientResponse.class);
+</code></pre>
+				    </section>
+				</section>
+
+				<section>
+					<section>
+					    <h2>Comprobación de resultados</h2>
+                        <p>Partiendo de unos datos controlados, hemos hecho una llamada nuestra capa <strong>REST</strong> y hemos obtenido unos resultados. ¿Son los esperados?
+                        <p><img style="width: 300px;" src="img/nose.jpg"></p>
+                        <p><img src="img/arrow.png" alt="Down arrow"></p>
+				    </section>
+
+					<section>
+					    <h2>Harmcrest</h2>
+                        <ul>
+                            <li>Librería de matchers para hacer comprobaciones.</li>
+                            <li><a href="http://code.google.com/p/hamcrest/wiki/Tutorial">http://code.google.com/p/hamcrest/wiki/Tutorial</a>.</li>
+                            <li>Aserciones más naturales que con los matchers de JUnit.</li>
+                        </ul>
+                        <p><img src="img/arrow.png" alt="Down arrow"></p>
+				    </section>
+
+					<section>
+					    <h2>Aserciones con HarmCrest</h2>
+                        <p>Las aserciones con HarmCrest son más comprensibles, fácilmente entendibles en un vistazo rápido.</p>
+                        <ul>
+                            <li><strong>JUNIT:</strong> isequals(listaEventos.size(), 2).</li>
+                            <li><strong>Harmcrest:</strong> assertThat(listaEventos, hasSize(2));</li>
+                        </ul>
+                        <p><img src="img/arrow.png" alt="Down arrow"></p>
+				    </section>
+
+					<section>
+                        <h2>Más ejemplos de aserciones con HarmCrest:</h2>
+                        <ul>
+                            <li>assertThat(diaDelEvento(eventoId), is(Calendar.FRIDAY));</li>
+                            <li>assertThat(horaInicioDelEvento(eventoId), is(10));</li>
+                            <li>assertThat(lista_eventos, everyItem(hasTitle()));</li>
+                        </ul>
+                        <p><img src="img/arrow.png" alt="Down arrow"></p>
+				    </section>
+
+					<section>
+                        <h2>Matchers personalizados</h2>
+                        <ul>
+                            <li>assertThat(lista_eventos, everyItem(hasTitle()));</li>
+                        </ul>
+                        <p><img src="img/arrow.png" alt="Down arrow"></p>
+				    </section>
+					<section>
+                        <h2>Implementación de un Matcher personalizado</h2>
+                        <pre><code contenteditable>
+public class UIEntityHasTitle extends TypeSafeMatcher<UIEntity>
+{
+
+    @Override
+    public void describeTo(Description description)
+    {
+        description.appendText("having a title");
+
+    }
+
+    @Override
+    protected boolean matchesSafely(UIEntity entity)
+    {
+        String entity_title = entity.get("title").replace("\"", "");
+        return entity_title != null && entity_title.length() &gt; 0;
+
+    }
+
+    @Factory
+    public static <T> Matcher<UIEntity> hasTitle()
+    {
+        return new UIEntityHasTitle();
+    }
+
+}
+</UIEntity>
+</code></pre>
+				    </section>
+				</section>
+				<section>
+<section>
+					    <h2>Análisis de cobertura</h2>
+					    <p>
+						    ¿Cuánto de nuestro código tiene protección anti-desastres?
+                        <p><img src="img/chaleco.gif"/></p>
+						<img src="img/arrow.png" alt="Down arrow">
+                    </section>
+					<section>
+					    <h2>Sonar</h2>
+                        <p><a href="http://devel.uji.es/sonar/dashboard/index/6421">Sonar</a> nos proporciona mucha información:</p>
+                        <br style="clear: both;"/>
+                        <ul>
+                            <li>% de líneas cubiertas.</li>
+                            <li>% de ramas cubiertas.</li>
+                            <li>% por paquete y clase.</li>
+                            <li>Coloreado de líneas cubiertas por algún test.</li>
+                        </ul>
+                        <br style="clear: both;"/>
+                        <br style="clear: both;"/>
+                        <p><strong>INCONVENIENTE:</strong> Esperar a que Jenkins lance el análisis (cada 10 minutos si hay commit).</p>
+						<img src="img/arrow.png" alt="Down arrow">
+                    </section>
+					<section>
+					    <h2>Ecobertura</h2>
+                        <p>Plugin para eclipse: <a href="http://ecobertura.johoop.de/">http://ecobertura.johoop.de/</a></p>
+                        <br />
+                        <ul>
+                            <li>La misma información que Sonar directamente en Eclipse.</li>
+                            <li><strong style="color: green;">¡Coloreado en el editor Java!</strong></li>
+                            <li>Análisis de cobertura de test suites o incluso tests individuales.</li>
+                        </ul>
+                    </section>
+                </section>
+
+				<section>
+				    <section>
+					    <h1>One more thing...</h1>
+                        <p><img src="img/apple.png"/></p>
+					    <img src="img/arrow.png" alt="Down arrow">
+				     </section>
+				    <section>
+				        <h2>¿Y los tests en la capa del cliente?</h2>
+                        <ul>
+                            <li><strong>Siesta:</strong> <a href="http://www.bryntum.com/products/siesta/">http://www.bryntum.com/products/siesta/</a>.</li>
+                            <li>Testing javascript para ExtJS.</li>
+                            <li>Simulación de acciones de usuario en web.</li>
+                        </ul>
+                        <br />
+                        <br />
+                        <ul>
+                            <li><strong>Tests unitarios:</strong> de componentes gráficos (tablas, combos, etc) o funcionales (data stores).</li>
+                            <li><strong>Tests de integración:</strong> acciones de usuario en la aplicación completa.</li>
+                        </ul>
+                        <p><img src="img/arrow.png" alt="Down arrow"></p>
+                    </section>
+
+				    <section>
+                        <h2>Ejemplo:</h2>
+<pre><code contenteditable>
+var steps = [
+     { action : 'click', target: '>>splitbutton' }, 
+     { action : 'click', target :'>>menuitem[action="asignacion-aulas]' },
+     { waitFor : 'componentQuery', args : '>>combobox[alias=widget.comboCentros]'},
+     { action : 'click', target :'>>combobox[alias=widget.comboCentros]' },                    
+     function (next) {
+         var combo_centros = Ext.ComponentQuery.query('>>combobox[alias=widget.comboCentros]')[0];
+         var combo_estudio = Ext.ComponentQuery.query('>>combobox[alias=widget.comboEstudios]')[0];
+         var combo_semestre = Ext.ComponentQuery.query('>>combobox[alias=widget.comboSemestre]')[0];
+ 
+         t.ok(! combo_centros.disabled, 'El combo de centros NO está deshabilitado');
+         t.ok(combo_estudio.disabled, 'El combo de estudios está deshabilitado');
+         t.ok(combo_semestre.disabled, 'El combo de semestres está deshabilitado');                                         
+
+         t.click(combo_centros.getPicker().getNode(centro_seleccionado),next);
+
+     },
+</code></pre>
+                <p>Pincha <a href="http://devel.uji.es/hor/index-tests.html">aquí</a> para la demo.</p>
+					    <img src="img/arrow.png" alt="Down arrow">
+                </section>
+				    <section>
+                        <h2>Problemas todavía no resueltos:</h2>
+                        <ul>
+                            <li>¿Con qué datos?
+                            <ul>
+                                <li>Mocking -> en proceso.</li>
+                                <li>Intercepción de llamadas AJAX para devolver datos sin pedirlos al servidor.</li>
+                            </ul></li>
+                            <li>Integración continua
+                            <ul>
+                                <li>Preparado para integrarse utilizando nodejs. todavía no está hecho.</li>
+                            </ul></li>
+                            <li>Test de controladores
+                            <ul>
+                                <li>No está bien resuelto (de momento) por las dependencias.</li>
+                                <li>Necesario ir a tests de aplicación -> lento.</li>
+                            </ul></li>
+                        </ul>
+                    </section>
 			</div>
 
 		</div>

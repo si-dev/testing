@@ -167,7 +167,7 @@ a.bottom-right > img {
     box-shadow: 0px;
 }
 
-a.bottom-right {
+img.bottom-right {
     position: absolute;
     bottom: 0;
     right: 0;
